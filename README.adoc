@@ -1,0 +1,161 @@
+== Compact Disc Temporal Resolution
+
+Compact Disc Digital Audio (CDDA) comprises two channels of 16-bit PCM
+with sampling-rate 44100 Hz—i.e. with sampling-period ≅22.7
+microseconds.
+http://boson.physics.sc.edu/~kunchur/Acoustics-papers.htm[Some have
+suggested] that _‘humans can discern timing alterations on a 5
+microsecond time scale, indicating that the digital sampling rates
+used in common consumer audio (such as CD) are insufficient for fully
+preserving transparency.’_ In this document however, we show that CDDA
+can preserve timing accuracy to within one nanosecond.
+
+=== Temporal Resolution
+
+Consider a PCM recording ‘A’ of audio events i.e. particular sounds or
+waveforms that are identifiable (by some means) as occurring at
+specific sampling-points counted from the beginning of the recording,
+and let the sampling-rate of A exceed that of CDDA.
+
+If A were ‘down-converted’ to CDDA, then ‘up-converted’ back to the
+original sampling-rate, then the result ‘B’ would be subject to all of
+CDDA’s limitations, including that of temporal resolution.  If the
+audio events in A and B occur at precisely the same points, then the
+sampling-period of A would serve as an upper bound for CDDA’s
+_temporal resolution_ of the tested audio.
+
+=== Test Method
+
+The above procedure can be simulated with a computer, for a single
+channel, as follows.
+
+* For A, we shall use a synthesised PCM file, one second in length.
+The identifiable audio events shall be the transitions of an ideal
+square-wave at 150·44100/44100.5 Hz.  Each cycle of the square-wave
+gives two such transitions, so A will contain a total of 299 audio
+events, positioned such that, w.r.t. CDDA sampling, the distance in
+time between each event and its nearest sampling point increases from
+zero to half the sampling-period (i.e. the events would fall, at
+different positions, between sampling-points).  The sampling-rate of A
+shall be 1 GHz, therefore each event shall occur between sampling
+points that are one nanosecond apart.  The sample encoding shall be
+signed 8-bit, i.e. the positive and negative portions of the
+square-wave shall be represented by the values ±127.
+
+* Down-converting A to CDDA sampling rate will yield intermediate file
+T, with one 16-bit sample for every ≅22675.7 samples from A.
+
+* Up-converting file T back to A’s sampling-rate and bit-depth will
+give file B, encoded as file A.  Due to the band-limiting inherent in
+the conversion process, the square-wave transitions in B will no
+longer occur between consecutive samples but over a number of samples
+in excess of twice the ratio of sampling-rates—see Figure 1.
+
++
+.Duration of transitions in B is ≅48000 samples
+image::images/b-raw.png[]
+
+* To determine the occurrence time of a transition in B, we shall use
+its zero-crossing point; this can be realised using amplification and
+saturation to map B back to a square wave.  Consequently, to compare
+the times of events in A and B, file comparison will suffice; i.e.  if
+the files are equal then the event times are equal.
+
+=== Test Procedure
+
+The above method can be implemented as follows:
+
+.On Windows OS
+****
+
+. Download the file named ‘sox-14.4.2-win32.exe’ from
+https://sourceforge.net/projects/sox/files/sox/14.4.2[here].
+. Move the file to the temporary folder C:\Windows\Temp.
+. Rename the file to sox.exe .
+. Open a command-prompt window and enter the following commands:
++
+----
+cd C:\Windows\Temp
+sox --ver
+
+sox -D -r1e9 -n a.s8 synth 1 sq 149.9983
+sox -D -r1e9 -c1 a.s8 -b16 t.wav vol .8 rate 44100
+sox -DV1 t.wav b.s8 rate 1e9 vol 1e9 vol .99
+
+fc /b a.s8 b.s8
+----
+****
+
+.On Ubuntu OS
+****
+Open a command-prompt window and enter the following commands:
+
+----
+sudo apt install sox
+cd /tmp
+sox --ver
+
+sox -D -r1e9 -n a.s8 synth 1 sq 149.9983
+sox -D -r1e9 -c1 a.s8 -b16 t.wav vol .8 rate 44100
+sox -DV1 t.wav b.s8 rate 1e9 vol 1e9 vol .99
+
+cmp [ab].s8
+----
+****
+
+==== Notes
+
+* The first invocation of the ‘sox’ utility displays its version
+number, which should be ‘SoX v14.4.2’.
+
+* On a typical desktop or laptop computer, the group of three ‘sox’
+commands takes a minute or two to complete; approximately 2 Gbytes of
+disc space will be consumed in the process.
+
+=== Results Analysis
+
+The comparison made by the last command in the test finds files A and
+B to be identical (Windows OS: ‘no differences encountered’ is
+reported; Ubuntu OS: nothing is reported), indicating that the timing
+of audio events in A has been reproduced from a CDDA encoded version
+of A.
+
+To help ensure the validity of the test procedure, file t.wav can be
+inspected using a D.A.W.  As shown in Figures 2 & 3, the intermediate
+signal is as expected:
+
+.Intermediate signal, positive portion
+image::images/t-pos.png[]
+
+.Intermediate signal, one transition
+image::images/t-trans.png[]
+
+=== Further Tests
+
+. An attempt to modify the test to use a sampling-rate of 2 GHz
+failed, apparently due to limitations of the ‘sox’ utility.
+
+. Modified to use a square-wave with ½ amplitude, the test still
+passes; with ¼ amplitude, it fails.
+
+=== Conclusion
+
+Experimentation has shown that CDDA encoding can accurately reproduce
+the timing audio events to within one nanosecond, providing that they
+are of large-enough amplitude.
+
+////
+=== Addendum
+
+Ubuntu OS users without 2 Gbytes of disc space available can
+perform the ‘meat’ of the above test equivalently as follows:
+
+----
+sox -D -r1e9 -n -ts8 - synth 1 sq 149.9983 |
+  tee >(sox -D -c1 -r1e9 -ts8 - -b16 t.wav vol .8 rate 44100) | md5sum
+sox -DV1 t.wav -ts8 - rate 1e9 vol 1e9 vol .99 | md5sum
+----
+
+The two mdsums displayed should match each other (and those of
+a.s8 or b.s8 from the original test script).
+////
